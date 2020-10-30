@@ -1,14 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
    View,
    StyleSheet,
    Dimensions,
    TouchableOpacity,
    SafeAreaView,
+   Platform,
 } from "react-native";
 import LottieView from "lottie-react-native";
 import { Text, Button } from "react-native-paper";
+import * as Notifications from "expo-notifications";
+import * as Permissions from "expo-permissions";
 import { Svg, Defs, RadialGradient, Stop, Rect } from "react-native-svg";
+import { defaults } from "../services/firebase";
+
+Notifications.setNotificationHandler({
+   handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+   }),
+});
+
+const getPushPermissionAsync = async () => {
+   return await Permissions.getAsync(Permissions.NOTIFICATIONS);
+};
+
+const registerForPushNotificationsAsync = async () => {
+   const { status: existingStatus } = await getPushPermissionAsync();
+   let finalStatus = existingStatus;
+   if (Platform.OS === "ios" && existingStatus !== "granted") {
+      console.log(
+         "Push Notifications - Asking for push notification permission"
+      );
+      const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+      finalStatus = status;
+   }
+
+   if (finalStatus !== "granted") {
+      return;
+   }
+   const token = (await Notifications.getExpoPushTokenAsync()).data;
+   console.log("Push Notifications - token = ", token);
+   defaults.pushToken = token;
+};
 
 const matrix = [
    ["1", "2", "3"],
@@ -57,6 +92,10 @@ const EMPTY_AMOUNT = "0.00";
 export default function MoneyAmount({ navigation }) {
    const [numberPadHeight, setNumberPadHeight] = useState(0);
    const [amount, setAmount] = useState(EMPTY_AMOUNT);
+
+   useEffect(() => {
+      registerForPushNotificationsAsync();
+   }, []);
 
    return (
       <SafeAreaView style={styles.flex}>
@@ -135,6 +174,7 @@ export default function MoneyAmount({ navigation }) {
             mode="contained"
             style={styles.send}
             onPress={() => {
+               setAmount(EMPTY_AMOUNT);
                navigation.navigate("Users", { amount });
             }}
          >

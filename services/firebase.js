@@ -2,6 +2,10 @@ import firebase from "firebase";
 import "firebase/firestore";
 import moment from "moment";
 
+const defaults = {
+   pushToken: null,
+};
+
 const firebaseConfig = {
    apiKey: "AIzaSyDQwA0A0xhd2SCzhEa2Rgkrnb-9cHVNObQ",
    authDomain: "localbankusers.firebaseapp.com",
@@ -28,6 +32,7 @@ const setDevice = (ip, userInfo) => {
                iban: userInfo.iban,
                name: userInfo.name,
                avatar: userInfo.avatar,
+               token: defaults.pushToken,
             },
          },
          { merge: true }
@@ -35,7 +40,6 @@ const setDevice = (ip, userInfo) => {
 };
 
 const listenToDevices = (ip, onData) => {
-   console.log("ip", ip);
    dbh.collection("ip_addresses")
       .doc(ip)
       .onSnapshot({}, (doc) => {
@@ -43,4 +47,4 @@ const listenToDevices = (ip, onData) => {
       });
 };
 
-export { setDevice, listenToDevices };
+export { setDevice, listenToDevices, defaults };

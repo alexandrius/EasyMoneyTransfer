@@ -1,9 +1,20 @@
 import React, { useEffect, useState, useRef } from "react";
 import publicIP from "react-native-public-ip";
+import LottieView from "lottie-react-native";
 import AsyncStorage from "@react-native-community/async-storage";
 import { setDevice, listenToDevices } from "../services/firebase";
-import { View, Text, Image, StyleSheet, Dimensions } from "react-native";
+import axios from "axios";
+import {
+   View,
+   Text,
+   Image,
+   StyleSheet,
+   Dimensions,
+   Vibration,
+   Platform,
+} from "react-native";
 import { PanGestureHandler } from "react-native-gesture-handler";
+import { getStatusBarHeight } from "react-native-iphone-x-helper";
 import Animated, {
    useAnimatedStyle,
    useSharedValue,
@@ -11,13 +22,15 @@ import Animated, {
    useAnimatedGestureHandler,
 } from "react-native-reanimated";
 import moment from "moment";
+import currency from "currency.js";
+import * as Haptics from "expo-haptics";
 
 const { height, width } = Dimensions.get("window");
 
 //normal 60
 const DISSAPEAR_AFTER = 60;
 
-function Person({ avatar, name, iban }) {
+function Person({ avatar, name, iban, onPositionSet, isHovered }) {
    const scale = useSharedValue(0);
    const animStyle = useAnimatedStyle(() => {
       return {
@@ -26,12 +39,24 @@ function Person({ avatar, name, iban }) {
    });
    useEffect(() => {
       scale.value = withSpring(1, {
-         duration: 500,
+         duration: 200,
       });
    }, []);
 
+   useEffect(() => {
+      const reqValue = isHovered ? 1.2 : 1;
+      scale.value = withSpring(reqValue, {
+         duration: 200,
+      });
+   }, [isHovered]);
+
    return (
-      <Animated.View style={[styles.personContainer, animStyle]}>
+      <Animated.View
+         onLayout={({ nativeEvent: { layout } }) => {
+            onPositionSet(iban, layout);
+         }}
+         style={[styles.personContainer, animStyle]}
+      >
          <Image style={styles.avatar} source={{ uri: avatar }} />
          <Text style={styles.name}>{name}</Text>
          <Text style={styles.iban}>{iban}</Text>
@@ -39,10 +64,23 @@ function Person({ avatar, name, iban }) {
    );
 }
 
-export default function Users({ route }) {
+let statusBarHeight = 0;
+
+export default function Users({ route, navigation }) {
    const amount = route.params?.amount;
 
    const [people, setPeople] = useState([]);
+   const [peopleCoords, setPeopleCoords] = useState([]);
+   const peopleCoordsRef = useRef({});
+   const [hoveringIndex, setHoveringIndexRaw] = useState(-1);
+   const hoveringIndexRef = useRef(-1);
+   const [moneyTransferTriggered, setMoneyTransferTriggered] = useState(false);
+
+   const setHoveringIndex = (index) => {
+      hoveringIndexRef.current = index;
+      setHoveringIndexRaw(index);
+   };
+
    const intervalRef = useRef(null);
 
    const translateX = useSharedValue(0);
@@ -62,7 +100,6 @@ export default function Users({ route }) {
       const userInfo = JSON.parse(await AsyncStorage.getItem("user_info"));
 
       listenToDevices(ip, (data) => {
-         console.log("received_data", data);
          let rawPeople = Object.values(data);
          let _people = [];
          rawPeople.forEach((p) => {
@@ -85,10 +122,39 @@ export default function Users({ route }) {
 
    useEffect(() => {
       getIpAndStartListening();
+      statusBarHeight = getStatusBarHeight(true);
       return () => {
          if (intervalRef.current) clearInterval(intervalRef.current);
       };
    }, []);
+
+   useEffect(() => {
+      if (hoveringIndex >= 0 && moneyTransferTriggered) {
+         const token = people[hoveringIndex].token;
+         console.log("person", people[hoveringIndex]);
+         if (token)
+            axios
+               .post(
+                  "https://exp.host/--/api/v2/push/send",
+                  {
+                     to: token,
+                     title: "You received Money",
+                     body: `$ ${currency(
+                        amount
+                     )}USD was debitted to your account`,
+                  },
+                  {
+                     headers: {
+                        host: "exp.host",
+                        accept: "application/json",
+                        "accept-encoding": "gzip, deflate",
+                        "content-type": "application/json",
+                     },
+                  }
+               )
+               .then((res) => console.log("res", res));
+      }
+   }, [hoveringIndex, moneyTransferTriggered]);
 
    const onGestureEvent = useAnimatedGestureHandler({
       onStart: (_, ctx) => {
@@ -96,20 +162,64 @@ export default function Users({ route }) {
          ctx.offsetY = translateY.value;
       },
       onActive: (event, ctx) => {
+         const y = event.absoluteY - statusBarHeight - 75;
+         const x = event.absoluteX;
+         let index = -1;
+
+         peopleCoords.forEach((coords) => {
+            if (
+               x > coords.x &&
+               x < coords.x + coords.width &&
+               y > coords.y &&
+               y < coords.y + coords.height
+            ) {
+               for (let i = 0; i < people.length; i++) {
+                  if (people[i].iban === coords.id) {
+                     index = i;
+                     break;
+                  }
+               }
+            }
+         });
+         if (index >= 0) {
+            if (hoveringIndexRef.current !== index) {
+               setHoveringIndex(index);
+               if (Platform.OS === "android") Vibration.vibrate(10);
+               else Haptics.selectionAsync();
+            }
+         } else if (hoveringIndexRef.current >= 0) {
+            setHoveringIndex(-1);
+         }
+
          translateX.value = ctx.offsetX + event.translationX;
          translateY.value = ctx.offsetY + event.translationY;
       },
       onEnd: ({ velocityX, velocityY }) => {
-         translateX.value = withSpring(0, { duration: 200 });
-         translateY.value = withSpring(0, { duration: 200 });
+         translateX.value = withSpring(0, { duration: 100 });
+         translateY.value = withSpring(0, { duration: 100 });
+         if (hoveringIndexRef.current >= 0) {
+            setMoneyTransferTriggered(true);
+         }
       },
    });
 
+   const onPersonPositionSet = (id, pos) => {
+      peopleCoordsRef.current[id] = { ...pos, id };
+      setPeopleCoords(Object.values(peopleCoordsRef.current));
+   };
+
    return (
       <View style={styles.flex}>
-         {people.map((p) => (
-            <Person {...p} key={p.iban} />
-         ))}
+         <View style={styles.peopleContainer}>
+            {people.map((p, i) => (
+               <Person
+                  isHovered={hoveringIndex === i}
+                  onPositionSet={onPersonPositionSet}
+                  {...p}
+                  key={p.iban}
+               />
+            ))}
+         </View>
 
          {!!amount && (
             <View style={styles.moneyRoot}>
@@ -117,9 +227,23 @@ export default function Users({ route }) {
                   <Animated.View
                      style={[styles.moneyContainer, animatedStyles]}
                   >
-                     <Text>{amount} $</Text>
+                     <Text>{currency(amount).toString()} $</Text>
                   </Animated.View>
                </PanGestureHandler>
+            </View>
+         )}
+         {moneyTransferTriggered && (
+            <View style={styles.moneyTransferOverlay}>
+               <LottieView
+                  autoPlay
+                  style={styles.animation}
+                  loop={false}
+                  source={require("../assets/send_money.json")}
+                  onAnimationFinish={() => {
+                     console.log("onAnimationFinish");
+                     navigation.goBack();
+                  }}
+               />
             </View>
          )}
       </View>
@@ -131,13 +255,20 @@ const styles = StyleSheet.create({
       flex: 1,
       paddingTop: 10,
    },
+   peopleContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+   },
    personContainer: {
       alignItems: "center",
+      marginHorizontal: 10,
+      height: 80,
    },
    avatar: {
       height: 80,
       width: 80,
       borderRadius: 40,
+      backgroundColor: "white",
    },
    name: {
       marginTop: 10,
@@ -154,10 +285,15 @@ const styles = StyleSheet.create({
    moneyContainer: {
       alignItems: "center",
       justifyContent: "center",
-      height: 60,
-      width: 60,
-      borderRadius: 30,
-      borderWidth: 1,
-      backgroundColor: "white",
+      height: 80,
+      width: 80,
+      borderRadius: 40,
+      borderWidth: 2,
+      borderColor: "#afc2cb",
+      backgroundColor: "#e1f5fe",
+   },
+   moneyTransferOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "#38c172",
    },
 });

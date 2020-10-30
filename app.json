@@ -16,6 +16,9 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
+    "notification": {
+      "iosDisplayInForeground": true
+    },
     "assetBundlePatterns": [
       "**/*"
     ],

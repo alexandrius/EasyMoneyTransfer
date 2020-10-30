@@ -5,12 +5,20 @@ import AsyncStorage from "@react-native-community/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import UserInfo from "./screens/userInfo";
+import LottieView from "lottie-react-native";
 import MoneyAmount from "./screens/moneyAmount";
 import Users from "./screens/users";
 import {
+   DefaultTheme,
    Provider as PaperProvider,
    ActivityIndicator,
 } from "react-native-paper";
+
+const theme = {
+   ...DefaultTheme,
+   dark: false,
+   mode: "exact",
+};
 
 LogBox.ignoreAllLogs(true);
 
@@ -29,14 +37,13 @@ export default function App() {
       AsyncStorage.getItem("user_info").then((info) => {
          if (info) {
             setUserInfo(JSON.parse(info));
-            console.log(JSON.parse(info));
          }
          setDataLoaded(true);
       });
    }, []);
 
    return (
-      <PaperProvider>
+      <PaperProvider theme={theme}>
          {!dataLoaded ? (
             <View style={styles.indicatorContainer}>
                <ActivityIndicator size="large" />
