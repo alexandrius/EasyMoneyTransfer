@@ -131,17 +131,16 @@ export default function Users({ route, navigation }) {
    useEffect(() => {
       if (hoveringIndex >= 0 && moneyTransferTriggered) {
          const token = people[hoveringIndex].token;
-         console.log("person", people[hoveringIndex]);
          if (token)
             axios
                .post(
                   "https://exp.host/--/api/v2/push/send",
                   {
                      to: token,
-                     title: "You received Money",
-                     body: `$ ${currency(
+                     title: "Someone sent Money",
+                     body: `You received $ ${currency(
                         amount
-                     )}USD was debitted to your account`,
+                     )}USD`,
                   },
                   {
                      headers: {
