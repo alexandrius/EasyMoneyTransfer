@@ -20,12 +20,11 @@ import Animated, {
    useSharedValue,
    withSpring,
    useAnimatedGestureHandler,
+   runOnJS,
 } from "react-native-reanimated";
 import moment from "moment";
 import currency from "currency.js";
 import * as Haptics from "expo-haptics";
-
-const { height, width } = Dimensions.get("window");
 
 //normal 60
 const DISSAPEAR_AFTER = 60;
@@ -59,7 +58,6 @@ function Person({ avatar, name, iban, onPositionSet, isHovered }) {
       >
          <Image style={styles.avatar} source={{ uri: avatar }} />
          <Text style={styles.name}>{name}</Text>
-         <Text style={styles.iban}>{iban}</Text>
       </Animated.View>
    );
 }
@@ -138,9 +136,7 @@ export default function Users({ route, navigation }) {
                   {
                      to: token,
                      title: "Someone sent Money",
-                     body: `You received $ ${currency(
-                        amount
-                     )}USD`,
+                     body: `You received $ ${currency(amount)}USD`,
                   },
                   {
                      headers: {
@@ -154,6 +150,11 @@ export default function Users({ route, navigation }) {
                .then((res) => console.log("res", res));
       }
    }, [hoveringIndex, moneyTransferTriggered]);
+
+   const vibrate = () => {
+      if (Platform.OS === "android") Vibration.vibrate(10);
+      else Haptics.selectionAsync();
+   };
 
    const onGestureEvent = useAnimatedGestureHandler({
       onStart: (_, ctx) => {
@@ -182,12 +183,11 @@ export default function Users({ route, navigation }) {
          });
          if (index >= 0) {
             if (hoveringIndexRef.current !== index) {
-               setHoveringIndex(index);
-               if (Platform.OS === "android") Vibration.vibrate(10);
-               else Haptics.selectionAsync();
+               runOnJS(setHoveringIndex)(index);
+               runOnJS(vibrate)();
             }
          } else if (hoveringIndexRef.current >= 0) {
-            setHoveringIndex(-1);
+            runOnJS(setHoveringIndex)(-1);
          }
 
          translateX.value = ctx.offsetX + event.translationX;
@@ -197,7 +197,7 @@ export default function Users({ route, navigation }) {
          translateX.value = withSpring(0, { duration: 100 });
          translateY.value = withSpring(0, { duration: 100 });
          if (hoveringIndexRef.current >= 0) {
-            setMoneyTransferTriggered(true);
+            runOnJS(setMoneyTransferTriggered)(true);
          }
       },
    });
@@ -224,9 +224,17 @@ export default function Users({ route, navigation }) {
             <View style={styles.moneyRoot}>
                <PanGestureHandler {...{ onGestureEvent }}>
                   <Animated.View
+                     source={require("../assets/money_background.png")}
                      style={[styles.moneyContainer, animatedStyles]}
                   >
-                     <Text>{currency(amount).toString()} $</Text>
+                     <Image
+                        style={styles.moneyBackground}
+                        resizeMode="contain"
+                        source={require("../assets/money_background.png")}
+                     />
+                     <Text style={styles.moneyAmounttoSend}>
+                        $ {currency(amount).toString()}
+                     </Text>
                   </Animated.View>
                </PanGestureHandler>
             </View>
@@ -239,7 +247,6 @@ export default function Users({ route, navigation }) {
                   loop={false}
                   source={require("../assets/send_money.json")}
                   onAnimationFinish={() => {
-                     console.log("onAnimationFinish");
                      navigation.goBack();
                   }}
                />
@@ -253,10 +260,24 @@ const styles = StyleSheet.create({
    flex: {
       flex: 1,
       paddingTop: 10,
+      backgroundColor: "#F3F4F6",
    },
    peopleContainer: {
       flexDirection: "row",
       flexWrap: "wrap",
+   },
+   moneyBackground: {
+      flex: 1,
+   },
+   moneyAmounttoSend: {
+      color: "white",
+      position: "absolute",
+      height: "100%",
+      width: "100%",
+      textAlign: "center",
+      top: 40,
+      fontWeight: "bold",
+      fontSize: 16,
    },
    personContainer: {
       alignItems: "center",
@@ -271,7 +292,8 @@ const styles = StyleSheet.create({
    },
    name: {
       marginTop: 10,
-      fontSize: 12,
+      fontSize: 16,
+      color: "#2b2b40",
    },
    iban: {
       fontSize: 10,
@@ -284,12 +306,9 @@ const styles = StyleSheet.create({
    moneyContainer: {
       alignItems: "center",
       justifyContent: "center",
-      height: 80,
-      width: 80,
-      borderRadius: 40,
-      borderWidth: 2,
-      borderColor: "#afc2cb",
-      backgroundColor: "#e1f5fe",
+      height: 100,
+      width: 100,
+      borderRadius: 50,
    },
    moneyTransferOverlay: {
       ...StyleSheet.absoluteFillObject,
