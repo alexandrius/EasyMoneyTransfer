@@ -45,7 +45,7 @@ const registerForPushNotificationsAsync = async () => {
    defaults.pushToken = token;
 };
 
-const matrix = [
+const padMatrix = [
    ["1", "2", "3"],
    ["4", "5", "6"],
    ["7", "8", "9"],
@@ -63,7 +63,7 @@ function PadButton({ height, value, onPress }) {
          onPress={onPress}
          style={styles.item}
       >
-         <View style={{ position: "absolute", widht: "100%", height: "100%" }}>
+         <View style={StyleSheet.absoluteFill}>
             <Svg height={height} width={itemWidth}>
                <Defs>
                   <RadialGradient
@@ -107,11 +107,12 @@ export default function MoneyAmount({ navigation }) {
          />
 
          <Text
-            style={{
-               alignSelf: "center",
-               fontSize: 40,
-               opacity: amount === EMPTY_AMOUNT ? 0.2 : 1,
-            }}
+            style={[
+               styles.amount,
+               {
+                  opacity: amount === EMPTY_AMOUNT ? 0.2 : 1,
+               },
+            ]}
          >
             {amount}
          </Text>
@@ -122,14 +123,16 @@ export default function MoneyAmount({ navigation }) {
             }}
          >
             {!!numberPadHeight &&
-               matrix.map((row, i) => (
+               padMatrix.map((row, i) => (
                   <View
-                     style={styles.numberRow(numberPadHeight / matrix.length)}
+                     style={styles.numberRow(
+                        numberPadHeight / padMatrix.length
+                     )}
                      key={i}
                   >
                      {row.map((v) => (
                         <PadButton
-                           height={numberPadHeight / matrix.length}
+                           height={numberPadHeight / padMatrix.length}
                            value={v}
                            key={v}
                            onPress={() => {
@@ -219,5 +222,9 @@ const styles = StyleSheet.create({
       marginHorizontal: 20,
       paddingVertical: 10,
       borderRadius: 10,
+   },
+   amount: {
+      alignSelf: "center",
+      fontSize: 40,
    },
 });

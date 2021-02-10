@@ -193,7 +193,7 @@ export default function Users({ route, navigation }) {
          translateX.value = ctx.offsetX + event.translationX;
          translateY.value = ctx.offsetY + event.translationY;
       },
-      onEnd: ({ velocityX, velocityY }) => {
+      onEnd: () => {
          translateX.value = withSpring(0, { duration: 100 });
          translateY.value = withSpring(0, { duration: 100 });
          if (hoveringIndexRef.current >= 0) {
