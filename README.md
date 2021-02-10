@@ -5,3 +5,7 @@ Application is based on React Native and Expo. Animations are done using Reanima
 
 ### Here's the example
 <img src="https://github.com/4TWIGGERS/EasyMoneyTransfer/raw/master/output.gif" width="300">
+
+
+### Video explanation
+[![EasyMoneyTransfer](https://i.ytimg.com/vi/BFFyBeLdokw/hqdefault.jpg)](https://www.youtube.com/watch?v=BFFyBeLdokw)
