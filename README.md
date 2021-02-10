@@ -8,4 +8,4 @@ Application is based on React Native and Expo. Animations are done using Reanima
 
 
 ### Video explanation
-[![EasyMoneyTransfer](https://i.ytimg.com/vi/BFFyBeLdokw/hqdefault.jpg)](https://www.youtube.com/watch?v=BFFyBeLdokw)
+[![EasyMoneyTransfer](https://yt-embed.herokuapp.com/embed?v=BFFyBeLdokw)](https://www.youtube.com/watch?v=BFFyBeLdokw)
